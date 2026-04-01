@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef SimpleMLApp < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure               matlab.ui.Figure
+        PlotItButton           matlab.ui.control.Button
+        PlotTypeDropDown       matlab.ui.control.DropDown
+        PlotTypeDropDownLabel  matlab.ui.control.Label
+        UIAxes                 matlab.ui.control.UIAxes
+    end
+
+    
+    properties (Access = private)
+        fs % sampling frequency (Hz)
+        dur % signal duration (seconds)
+        f0 % sinusoidal frequency (Hz)
+        amp % sinusoidal amplitude
+        t % time vector
+        f % frequency vector
+        signal % sinusoidal signal
+        noise % Gaussian noise signal
+        cm % color order map
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app)
+            % Define signal and noise vectors
+            app.dur = 1;
+            app.fs = 1000;
+            app.f0 = 100;
+            app.amp = 0.5;
+
+            app.t = (0:1/app.fs:app.dur)';
+            app.f = app.fs*(0:numel(app.t)-1)/numel(app.t);
+
+            app.signal = app.amp*cos(2*pi*app.f0*app.t);
+            app.noise = randn(size(app.signal));
+
+        % Plot time domain signal and noise
+            app.cm = colororder;
+            plot(app.UIAxes,app.t,app.noise,'Color',0.78*ones(1,3));
+            hold(app.UIAxes,'on');
+            plot(app.UIAxes,app.t,app.signal,'Color',app.cm(1,:),...
+                'LineWidth',1);
+
+            app.UIAxes.XLabel.String = "Time (seconds)";
+            app.UIAxes.YLabel.String = "Amplitude";
+            app.UIAxes.Title.String = "Time Domain";
+
+            app.UIAxes.XGrid = 'on';
+            app.UIAxes.YGrid = 'on';
+
+            legend(app.UIAxes,{'Signal + Noise','Signal ONLY'});
+
+        end
+
+        % Button pushed function: PlotItButton
+        function PlotItButtonPushed(app, event)
+            plotType = app.PlotTypeDropDown.Value;
+
+            if plotType == "Time Domain"
+                fprintf('Time Domain plot selected \n');
+
+                plot(app.UIAxes,app.t,app.noise,'Color',0.78*ones(1,3));
+                hold(app.UIAxes,'on');
+                plot(app.UIAxes,app.t,app.signal,'Color',app.cm(1,:),...
+                    'LineWidth',1);
+
+                app.UIAxes.XLabel.String = "Time (seconds)";
+                app.UIAxes.YLabel.String = "Amplitude";
+                app.UIAxes.Title.String = "Time Domain";
+
+                app.UIAxes.XLim = [0, app.dur];
+                app.UIAxes.YLim  = [-4 4];
+
+                app.UIAxes.XGrid = 'on';
+                app.UIAxes.YGrid = 'on';
+
+                legend(app.UIAxes,{'Signal + Noise','Signal ONLY'});
+
+                hold(app.UIAxes,'off');
+
+            elseif plotType == "Frequency Domain"
+                fprintf('Frequency (Fourier) Domain plot selected \n');
+
+                plot(app.UIAxes,app.f,20*log10(abs(fft(app.noise))),...
+                    'Color',0.78*ones(1,3));
+                hold(app.UIAxes,'on');
+                stem(app.UIAxes,app.f,20*log10(abs(fft(app.signal))),'.-','Color',app.cm(2,:))
+                
+                app.UIAxes.XLabel.String = "Frequency (Hz)";
+                app.UIAxes.YLabel.String = "Power (dB)";
+                app.UIAxes.Title.String = "Frequency (Fourier) Domain";
+
+                app.UIAxes.XGrid = 'on';
+                app.UIAxes.YGrid = 'on';
+                app.UIAxes.XLim = [0 app.fs/2];
+                app.UIAxes.YLim = [0 60];
+
+                legend(app.UIAxes,{'Noise','Signal'});
+                app.UIAxes.Legend.PlotChildren(2).Color = app.cm(2,:);
+
+                hold(app.UIAxes,'off');
+
+            end
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, 'Title')
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.Position = [60 134 521 317];
+
+            % Create PlotTypeDropDownLabel
+            app.PlotTypeDropDownLabel = uilabel(app.UIFigure);
+            app.PlotTypeDropDownLabel.HorizontalAlignment = 'right';
+            app.PlotTypeDropDownLabel.Position = [71 56 55 22];
+            app.PlotTypeDropDownLabel.Text = 'Plot Type';
+
+            % Create PlotTypeDropDown
+            app.PlotTypeDropDown = uidropdown(app.UIFigure);
+            app.PlotTypeDropDown.Items = {'Time Domain', 'Frequency Domain'};
+            app.PlotTypeDropDown.Position = [141 56 191 22];
+            app.PlotTypeDropDown.Value = 'Time Domain';
+
+            % Create PlotItButton
+            app.PlotItButton = uibutton(app.UIFigure, 'push');
+            app.PlotItButton.ButtonPushedFcn = createCallbackFcn(app, @PlotItButtonPushed, true);
+            app.PlotItButton.Position = [348 56 233 23];
+            app.PlotItButton.Text = 'Plot It';
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = SimpleMLApp
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @startupFcn)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>
