@@ -1,0 +1,3 @@
+Build a translator that outputs App Designer plain‑text apps: MyApp.m (callbacks/properties) + MyApp.xml (layout/config). The XML must follow the <MATLABApp> structure and serialization rules in /spec/AD-Plain Text App XML Schema Overview (26b)-030426-154956.md: component names are class names; name attribute is required; properties are child elements sorted alphabetically; <Children> is always last; omit default properties; callback properties reference functions that must exist in .m. 
+Input for v0 is Live Script XML produced by matlab.internal.liveeditor.openAndConvert (provided as input.xml). 
+First milestone: support a single UIFigure containing one UIAxes and one slider or button, with correct callback wiring and a working startup path.

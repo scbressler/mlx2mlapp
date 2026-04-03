@@ -1,0 +1,1 @@
+Implement emit_app_xml(ir) -> string conforming to /spec/AD-Plain Text App XML Schema Overview (26b)-030426-154956.md. Ensure UIFigure exists and contains children. Ensure callback properties are written when IR marks an interaction. Ensure determinism: property order rules, and stable component ordering. Add golden tests comparing produced XML to /golden/*/expected/App.xml.

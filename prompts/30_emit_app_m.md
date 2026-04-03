@@ -1,0 +1,1 @@
+Implement emit_app_m(ir, app_xml) -> App.m that defines: component properties, any user properties needed for state, and every callback referenced in XML. Callback bodies should call helper functions generated from the Live Script code blocks. Ensure every callback name referenced in <…Fcn> elements exists as a method.
