@@ -1,0 +1,9 @@
+Live Code File Format (.mlx)
+By default, MATLAB® stores live scripts and functions using a binary Live Code file format in a file with a .mlx extension. This binary Live Code file format uses Open Packaging Conventions technology, which is an extension of the zip file format. Code and formatted content are stored in an XML document separate from the output using the Office Open XML (ECMA-376) format.
+
+You also can save live scripts and functions using a plain text Live Code file format (.m). Files save using this file format can be opened in an external code editor, have increased transparency, and improved integration with source control. For more information, see Live Code File Format (.m) (since R2025a)
+
+Source Control
+To determine and display code differences between live scripts or functions, use the MATLAB Comparison Tool.
+
+If you use source control, register the .mlx extension as binary. For more information, see Register Binary Files with SVN or Register Binary Files with Git.

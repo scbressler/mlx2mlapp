@@ -1,0 +1,1 @@
+Implement parse_livescript_xml_to_ir(input_xml) -> ir.json. IR must preserve document order and capture: controls, variables bound to controls, code blocks, and plots. Include stable IDs for each region. Emit IR and unit tests using /golden/*/input.xml.

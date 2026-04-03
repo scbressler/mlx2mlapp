@@ -1,0 +1,1 @@
+Add a MATLAB smoke test script that loads the generated app (instantiate the class), and fails if: XML cannot be parsed, missing callbacks referenced by XML, or component name attributes referenced by code are missing.
