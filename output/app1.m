@@ -1,20 +1,24 @@
-classdef minimal_axes < matlab.apps.App
+classdef app1 < matlab.apps.App
 
     % Properties that correspond to app components
     properties (Access = public)
-        UIFigure  matlab.ui.Figure
-        UIAxes    matlab.ui.control.UIAxes
+        UIFigure   matlab.ui.Figure
+        RunButton  matlab.ui.control.Button
     end
+
+    
+    properties (Access = private)
+        counter = 0 % Description
+    end
+    
 
     % Callbacks that handle component events
     methods
 
-        % Code that executes after component creation
-        function startupFcn(app)
-            fs = 1000;
-            t = (0:1/fs:1)';
-            xt = sin(2*pi*4*t);
-            plot(app.UIAxes, t,xt);
+        % Button pushed function: RunButton
+        function RunButtonPushed(app, event)
+            app.counter = app.counter + 1;
+            disp(app.counter);
         end
     end
 
@@ -30,21 +34,14 @@ end
         <Name>'MATLAB App'</Name>
         <Position>[100 100 640 480]</Position>
         <Children>
-            <UIAxes name='UIAxes'>
-                <Position>[15 15 610 440]</Position>
-            </UIAxes>
+            <Button name='RunButton'>
+                <ButtonPushedFcn>RunButtonPushed</ButtonPushedFcn>
+                <Position>[272 219 100 22]</Position>
+                <Text>'Run'</Text>
+            </Button>
         </Children>
     </UIFigure>
 </Components>
-%}
-
-%---
-%[app:runConfiguration]
-%{
-<?xml version='1.0' encoding='UTF-8'?>
-<RunConfiguration>
-    <StartupFcn>startupFcn</StartupFcn>
-</RunConfiguration>
 %}
 
 %---
@@ -52,7 +49,7 @@ end
 %{
 <?xml version='1.0' encoding='UTF-8'?>
 <AppDetails>
-    <Name>minimal_axes</Name>
+    <Name>app1</Name>
     <Version>1.0</Version>
 </AppDetails>
 %}
@@ -62,7 +59,7 @@ end
 %{
 <?xml version='1.0' encoding='UTF-8'?>
 <InternalData>
-    <AppId>b3c4d5e6-f7a8-9012-3456-789012345678</AppId>
+    <AppId>e487ce09-1bec-455a-b455-95def67a5f76</AppId>
     <AppType>Standard</AppType>
     <MATLABRelease>R2025b</MATLABRelease>
     <MinimumSupportedMATLABRelease>R2025a</MinimumSupportedMATLABRelease>

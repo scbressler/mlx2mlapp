@@ -1,8 +1,10 @@
-classdef minimal_axes < matlab.apps.App
+classdef minimal_axes_with_text < matlab.apps.App
 
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure  matlab.ui.Figure
+        Label_1   matlab.ui.control.Label
+        Label_2   matlab.ui.control.Label
         UIAxes    matlab.ui.control.UIAxes
     end
 
@@ -11,10 +13,12 @@ classdef minimal_axes < matlab.apps.App
 
         % Code that executes after component creation
         function startupFcn(app)
-            fs = 1000;
-            t = (0:1/fs:1)';
-            xt = sin(2*pi*4*t);
-            plot(app.UIAxes, t,xt);
+            fs = 1000; % sampling frequency (Hz)
+            dur = 1; % signal duration (seconds)
+            f0 = 4; % sinusoid frequency (Hz)
+            t = (0:1/fs:dur)'; % time vector
+            signal = sin(2*pi*f0*t);
+            plot(app.UIAxes, t,signal);
         end
     end
 
@@ -28,10 +32,21 @@ end
 <Components>
     <UIFigure name='UIFigure'>
         <Name>'MATLAB App'</Name>
-        <Position>[100 100 640 480]</Position>
+        <Position>[100 100 1440 1024]</Position>
         <Children>
+            <Label name='Label_1'>
+                <FontSize>18</FontSize>
+                <FontWeight>'bold'</FontWeight>
+                <Position>[20 964 1400 40]</Position>
+                <Text>'Sine Wave Demo'</Text>
+            </Label>
+            <Label name='Label_2'>
+                <Position>[20 932 1400 22]</Position>
+                <Text>'This plots a sine wave'</Text>
+                <WordWrap>'on'</WordWrap>
+            </Label>
             <UIAxes name='UIAxes'>
-                <Position>[15 15 610 440]</Position>
+                <Position>[20 482 1400 440]</Position>
             </UIAxes>
         </Children>
     </UIFigure>
@@ -52,7 +67,7 @@ end
 %{
 <?xml version='1.0' encoding='UTF-8'?>
 <AppDetails>
-    <Name>minimal_axes</Name>
+    <Name>minimal_axes_with_text</Name>
     <Version>1.0</Version>
 </AppDetails>
 %}
@@ -62,7 +77,7 @@ end
 %{
 <?xml version='1.0' encoding='UTF-8'?>
 <InternalData>
-    <AppId>b3c4d5e6-f7a8-9012-3456-789012345678</AppId>
+    <AppId>c4d5e6f7-a8b9-0123-4567-890123456789</AppId>
     <AppType>Standard</AppType>
     <MATLABRelease>R2025b</MATLABRelease>
     <MinimumSupportedMATLABRelease>R2025a</MinimumSupportedMATLABRelease>

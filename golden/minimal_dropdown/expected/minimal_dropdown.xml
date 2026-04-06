@@ -4,16 +4,11 @@
         <Name>'MATLAB App'</Name>
         <Position>[100 100 640 480]</Position>
         <Children>
-            <Label name='DropdownDropDownLabel'>
-                <HorizontalAlignment>'right'</HorizontalAlignment>
-                <Position>[244 229 63 22]</Position>
-                <Text>'Drop down'</Text>
-            </Label>
-            <DropDown name='DropdownDropDown' label='DropdownDropDownLabel'>
+            <DropDown name='DropDown'>
                 <Items>{'one', 'two'}</Items>
-                <Position>[322 229 100 22]</Position>
+                <Position>[270 229 100 22]</Position>
                 <Value>'one'</Value>
-                <ValueChangedFcn>DropdownDropDownValueChanged</ValueChangedFcn>
+                <ValueChangedFcn>DropDownValueChanged</ValueChangedFcn>
             </DropDown>
         </Children>
     </UIFigure>

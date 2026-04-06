@@ -1,4 +1,4 @@
-classdef app1 < matlab.apps.App
+classdef minimal_button < matlab.apps.App
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -49,7 +49,7 @@ end
 %{
 <?xml version='1.0' encoding='UTF-8'?>
 <AppDetails>
-    <Name>app1</Name>
+    <Name>minimal_button</Name>
     <Version>1.0</Version>
 </AppDetails>
 %}

@@ -2,18 +2,23 @@ classdef minimal_dropdown < matlab.apps.App
 
     % Properties that correspond to app components
     properties (Access = public)
-        UIFigure               matlab.ui.Figure
-        DropdownDropDown       matlab.ui.control.DropDown
-        DropdownDropDownLabel  matlab.ui.control.Label
+        UIFigure  matlab.ui.Figure
+        DropDown  matlab.ui.control.DropDown
     end
+
+    
+    properties (Access = private)
+        value = 'one' % Description
+    end
+    
 
     % Callbacks that handle component events
     methods
 
-        % Value changed function: DropdownDropDown
-        function DropdownDropDownValueChanged(app, event)
-            value = app.DropdownDropDown.Value;
-            disp(value);
+        % Value changed function: DropDown
+        function DropDownValueChanged(app, event)
+            app.value = app.DropDown.Value;
+            disp(app.value);
         end
     end
 
@@ -29,16 +34,11 @@ end
         <Name>'MATLAB App'</Name>
         <Position>[100 100 640 480]</Position>
         <Children>
-            <Label name='DropdownDropDownLabel'>
-                <HorizontalAlignment>'right'</HorizontalAlignment>
-                <Position>[244 229 63 22]</Position>
-                <Text>'Drop down'</Text>
-            </Label>
-            <DropDown name='DropdownDropDown' label='DropdownDropDownLabel'>
+            <DropDown name='DropDown'>
                 <Items>{'one', 'two'}</Items>
-                <Position>[322 229 100 22]</Position>
+                <Position>[270 229 100 22]</Position>
                 <Value>'one'</Value>
-                <ValueChangedFcn>DropdownDropDownValueChanged</ValueChangedFcn>
+                <ValueChangedFcn>DropDownValueChanged</ValueChangedFcn>
             </DropDown>
         </Children>
     </UIFigure>
@@ -60,7 +60,7 @@ end
 %{
 <?xml version='1.0' encoding='UTF-8'?>
 <InternalData>
-    <AppId>1d4d5370-501d-4f0d-9d72-626b2d14ef5d</AppId>
+    <AppId>a2b3c4d5-e6f7-8901-2345-678901234567</AppId>
     <AppType>Standard</AppType>
     <MATLABRelease>R2025b</MATLABRelease>
     <MinimumSupportedMATLABRelease>R2025a</MinimumSupportedMATLABRelease>
