@@ -5,11 +5,7 @@
         <Position>[100 100 640 480]</Position>
         <Children>
             <UIAxes name='UIAxes'>
-                <Position>[161 236 300 185]</Position>
-                <Title.String>'Title'</Title.String>
-                <XLabel.String>'X'</XLabel.String>
-                <YLabel.String>'Y'</YLabel.String>
-                <ZLabel.String>'Z'</ZLabel.String>
+                <Position>[15 15 610 440]</Position>
             </UIAxes>
         </Children>
     </UIFigure>
