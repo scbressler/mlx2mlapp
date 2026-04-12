@@ -46,8 +46,44 @@ Rendered outputs are ignored.
 - Live controls are detected via embedded `customXml` blocks.
 - Control metadata (type, label, items, default value, execution model)
   is treated as authoritative.
-- Supported control types (initial scope):
-  - Button
-  - Slider
-  - Dropdown (ComboBox)
+- The `context` attribute of each `customXml` block contains a JSON object
+  with `"type"` and `"data"` fields. The `"type"` string determines which
+  control parser is invoked.
+
+### Confirmed control types (with known `context` JSON structure)
+
+Field names below are from the plain-text `.m` appendix format. In `document.xml`
+the same fields appear inside a `"data"` key and `executionModel` replaces `run`.
+
+| Control | `"type"` string | Key `"data"` fields |
+|---------|----------------|---------------------|
+| Button | `button` | `text`, `value`, `executionModel` |
+| Drop Down | `comboBox` | `text`, `value`, `executionModel`, `items`, `itemLabels`, `linkedVariable`, `defaultValue` |
+| Range Slider | `rangeslider` | `defaultValue` (e.g. `"[0 100]"`), `min`, `max`, `step`, `label`, `run`, `runOn` |
+| Checkbox | `checkbox` | `defaultValue` (boolean), `label`, `run` |
+| Color Picker | `colorPicker` | `defaultValue` (e.g. `"[1 1 1]"` RGB 0–1), `colorFormat`, `label`, `run` |
+| Date Picker | `datePicker` | `displayFormat`, `label`, `run` (no `defaultValue` field) |
+| Edit Field (numeric) | `editfield` | `defaultValue` (number), `label`, `run`, `valueType: "Double"` |
+| Edit Field (text) | `editfield` | `defaultValue` (string), `label`, `run`, `valueType: "String"` |
+| File Browser | `filebrowser` | `defaultValue`, `browserType` (e.g. `"File"`), `label`, `run` |
+
+**Note:** Both edit field variants share `type: "editfield"`, differentiated by `valueType`.
+**Note:** File Browser is its own first-class control type — not an EditField+Button composite.
+
+| Spinner | `spinner` | `defaultValue` (number), `min`, `max`, `step`, `label`, `run`, `runOn` |
+| State Button | `statebutton` | `defaultValue` (boolean), `label`, `run` |
+| Slider | `slider` | `defaultValue` (number), `min`, `max`, `step`, `label`, `run`, `runOn` |
+
+**Note:** Slider, Spinner, and Range Slider share identical JSON shape (`defaultValue`, `min`, `max`, `step`, `label`, `run`, `runOn`).
+State Button and Checkbox share identical JSON shape (boolean `defaultValue`, `label`, `run`).
+
+All 11 Live Editor controls are now confirmed. No controls with unknown `type` remain.
+
+### Acquisition strategy for new widget types
+
+To discover the `context` JSON for an unknown control without zip extraction:
+1. Create a minimal Live Script containing the target control
+2. Save As → **MATLAB Live Code File (UTF-8) (*.m)** (plain-text, R2025a+)
+3. Read the `%[control:controltype:controlid]` data block in the file's appendix
+4. The JSON there contains all field names needed to write the parser
 

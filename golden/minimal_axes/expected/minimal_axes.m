@@ -32,6 +32,10 @@ end
         <Children>
             <UIAxes name='UIAxes'>
                 <Position>[15 15 610 440]</Position>
+                <Title.String>''</Title.String>
+                <XLabel.String>''</XLabel.String>
+                <YLabel.String>''</YLabel.String>
+                <ZLabel.String>''</ZLabel.String>
             </UIAxes>
         </Children>
     </UIFigure>

@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Components>
+    <UIFigure name='UIFigure'>
+        <Name>'MATLAB App'</Name>
+        <Position>[100 100 1100 760]</Position>
+        <Children>
+            <Label name='Label_1'>
+                <FontSize>18</FontSize>
+                <FontWeight>'bold'</FontWeight>
+                <Position>[20 700 1060 40]</Position>
+                <Text>'Sine Wave Demo'</Text>
+            </Label>
+            <Label name='Label_2'>
+                <Position>[20 668 1060 22]</Position>
+                <Text>'This plots a sine wave'</Text>
+                <WordWrap>'on'</WordWrap>
+            </Label>
+            <UIAxes name='UIAxes'>
+                <Position>[20 218 1060 440]</Position>
+                <Title.String>''</Title.String>
+                <XLabel.String>''</XLabel.String>
+                <YLabel.String>''</YLabel.String>
+                <ZLabel.String>''</ZLabel.String>
+            </UIAxes>
+        </Children>
+    </UIFigure>
+</Components>

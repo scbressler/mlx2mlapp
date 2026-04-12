@@ -60,21 +60,48 @@ counter = counter + 1;
 disp(counter);
 ```
 
-Output component in layout XML:
+Output components in layout XML (layout engine path, 1100×760 canvas):
 ```xml
 <Button name='RunButton'>
     <ButtonPushedFcn>RunButtonPushed</ButtonPushedFcn>
-    <Position>[272 219 100 22]</Position>
+    <Position>[20 708 1060 32]</Position>
     <Text>'Run'</Text>
 </Button>
+<TextArea name='RunCodeTextArea'>
+    <BackgroundColor>[0 0 0]</BackgroundColor>
+    <Editable>'off'</Editable>
+    <FontColor>[1 1 1]</FontColor>
+    <FontName>'Courier New'</FontName>
+    <Position>[20 578 1060 120]</Position>
+    <Value>{'counter = counter + 1;'; 'disp(counter);'}</Value>
+</TextArea>
+<TextArea name='RunOutputTextArea'>
+    <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>
+    <Editable>'off'</Editable>
+    <FontColor>[0.4 1 0.4]</FontColor>
+    <FontName>'Courier New'</FontName>
+    <Position>[20 448 1060 120]</Position>
+    <Value>''</Value>
+</TextArea>
 ```
 
-Output callback in classdef:
+Output callback in classdef (diary-wrapped):
 ```matlab
 % Button pushed function: RunButton
 function RunButtonPushed(app, event)
+    diaryFile = [tempname '.txt'];
+    diary(diaryFile);
+    diary('on');
     app.counter = app.counter + 1;
     disp(app.counter);
+    diary('off');
+    if exist(diaryFile, 'file')
+        capturedOutput = fileread(diaryFile);
+        delete(diaryFile);
+    else
+        capturedOutput = '';
+    end
+    app.RunOutputTextArea.Value = strsplit(strtrim(capturedOutput), newline);
 end
 ```
 
@@ -82,8 +109,8 @@ end
 
 ## Output: Public Component Properties
 
-The app always declares `UIFigure` as a public property.
-Each button section adds one `{Label}Button` public property.
+Each button section adds three public properties: `{Label}Button`,
+`{Label}CodeTextArea`, and `{Label}OutputTextArea`.
 
 Property declarations are right-padded so type annotations align.
 
@@ -93,10 +120,12 @@ Property declarations are right-padded so type annotations align.
 
 - Root element is `<Components>`.
 - `<UIFigure>` is the sole child of `<Components>`.
-- UIFigure properties: `<Name>'MATLAB App'</Name>`, `<Position>[100 100 640 480]</Position>`.
-- Component property elements are in alphabetical order.
-- `<Children>` is always last.
-- Default button position for a single centered button: `[272 219 100 22]`.
+- UIFigure uses the layout engine canvas: `<Position>[100 100 1100 760]</Position>`.
+- Button sections always use the layout engine path (never the fixed 640×480 path).
+- Component property elements are in alphabetical order; `<Children>` is always last.
+- Button height: 32px, full usable width (1060px), left-aligned at x=20.
+- CodeTextArea and OutputTextArea follow the button with 10px row gap between each.
+  See `specs/output_capture.md` for TextArea styling and height.
 
 ---
 

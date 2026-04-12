@@ -8,17 +8,23 @@ sections.
 
 ## Canvas Dimensions
 
-The UIFigure is sized for a 1440×1024 pixel presentation window:
+The UIFigure is sized to fit within a 1470×956 screen (MacBook Air) with room
+for OS chrome:
 
 ```
-<Position>[100 100 1440 1024]</Position>
+<Position>[100 100 1100 760]</Position>
 ```
+
+**Important:** MATLAB auto-scales figures that exceed screen dimensions,
+triggering `AutoResizeChildren` which causes UIAxes positions to drift
+unpredictably across runs. Keep canvas height ≤ ~800 px. Do not increase
+without testing on target hardware.
 
 The usable interior (inside a 20 px margin on all sides) is:
 
 - **Origin**: `(20, 20)` (bottom-left, MATLAB coordinate convention)
-- **Width**: 1400 px
-- **Height**: 984 px
+- **Width**: 1060 px
+- **Height**: 720 px
 
 All component positions are computed within this usable area.
 
@@ -35,7 +41,7 @@ coordinates means bottom-to-top (y decreases as we go down the page).
 top of the usable area and moves downward (decreasing) as components are placed.
 
 ```
-y_cursor = margin + usable_height   # top of usable area = 20 + 984 = 1004
+y_cursor = margin + usable_height   # top of usable area = 20 + 720 = 740
 ```
 
 Each component row is placed at `y_cursor - row_height`, then `y_cursor` is
@@ -55,10 +61,29 @@ decremented by `row_height + row_gap`.
 | Label (body) | 22 px |
 | Button | 32 px |
 | DropDown | 32 px |
-| UIAxes | 440 px |
+| UIAxes | 440 px (single), 260 px (multiple) |
+| CodeTextArea | 120 px |
+| OutputTextArea | 120 px |
 
 These heights may be overridden by explicit layout rules in individual
 translation contracts.
+
+---
+
+## Layout Engine Trigger
+
+The layout engine path (1100×760 canvas, y_cursor algorithm) is used when **any**
+of the following is true:
+
+- More than one section
+- Any section has labels (heading or text paragraphs)
+- Any section has display code lines (`code_lines`)
+- Any section has button livecontrols (`button_sections`)
+- Any section has dropdown livecontrols (`dropdown_sections`)
+
+The **fixed path** (640×480 canvas, hard-coded positions) is used only for a
+single section with no labels and no livecontrols — i.e., a plain plot-only
+or axes-only section.
 
 ---
 
@@ -88,7 +113,7 @@ bottom values by computing `bottom = y_cursor - height`.
 
 ## Out of Scope
 
-- Scrolling (all content must fit within the 1440×1024 canvas)
+- Scrolling (all content must fit within the 1100×760 canvas)
 - Responsive layout (fixed pixel positions only)
 - GridLayout-based positioning
 - Components that exceed canvas bounds (no overflow handling)

@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Components>
+    <UIFigure name='UIFigure'>
+        <Name>'MATLAB App'</Name>
+        <Position>[100 100 1100 760]</Position>
+        <Children>
+            <Label name='Label_1'>
+                <FontSize>18</FontSize>
+                <FontWeight>'bold'</FontWeight>
+                <Position>[20 700 1060 40]</Position>
+                <Text>'Multi-Section Demo'</Text>
+            </Label>
+            <Label name='Label_2'>
+                <Position>[20 668 1060 22]</Position>
+                <Text>'This is an example of a Live Script with multiple sections'</Text>
+                <WordWrap>'on'</WordWrap>
+            </Label>
+            <UIAxes name='UIAxes_1'>
+                <Position>[20 398 1060 260]</Position>
+                <Title.String>''</Title.String>
+                <XLabel.String>''</XLabel.String>
+                <YLabel.String>''</YLabel.String>
+                <ZLabel.String>''</ZLabel.String>
+            </UIAxes>
+            <Label name='Label_3'>
+                <FontSize>18</FontSize>
+                <FontWeight>'bold'</FontWeight>
+                <Position>[20 338 1060 40]</Position>
+                <Text>'Section 2'</Text>
+            </Label>
+            <Label name='Label_4'>
+                <Position>[20 306 1060 22]</Position>
+                <Text>'Another section with a different data plot'</Text>
+                <WordWrap>'on'</WordWrap>
+            </Label>
+            <UIAxes name='UIAxes_2'>
+                <Position>[20 36 1060 260]</Position>
+                <Title.String>''</Title.String>
+                <XLabel.String>''</XLabel.String>
+                <YLabel.String>''</YLabel.String>
+                <ZLabel.String>''</ZLabel.String>
+            </UIAxes>
+        </Children>
+    </UIFigure>
+</Components>

@@ -32,21 +32,25 @@ end
 <Components>
     <UIFigure name='UIFigure'>
         <Name>'MATLAB App'</Name>
-        <Position>[100 100 1440 1024]</Position>
+        <Position>[100 100 1100 760]</Position>
         <Children>
             <Label name='Label_1'>
                 <FontSize>18</FontSize>
                 <FontWeight>'bold'</FontWeight>
-                <Position>[20 964 1400 40]</Position>
+                <Position>[20 700 1060 40]</Position>
                 <Text>'Sine Wave Demo'</Text>
             </Label>
             <Label name='Label_2'>
-                <Position>[20 932 1400 22]</Position>
+                <Position>[20 668 1060 22]</Position>
                 <Text>'This plots a sine wave'</Text>
                 <WordWrap>'on'</WordWrap>
             </Label>
             <UIAxes name='UIAxes'>
-                <Position>[20 482 1400 440]</Position>
+                <Position>[20 218 1060 440]</Position>
+                <Title.String>''</Title.String>
+                <XLabel.String>''</XLabel.String>
+                <YLabel.String>''</YLabel.String>
+                <ZLabel.String>''</ZLabel.String>
             </UIAxes>
         </Children>
     </UIFigure>

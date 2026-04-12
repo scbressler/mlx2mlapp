@@ -22,11 +22,16 @@ initialization sections (see `button_section.md`).
 
 ## Output: Component
 
-A single `UIAxes` component is added to the app:
-- **Name**: `UIAxes`
+A single `UIAxes` component is added to the app per plotting section:
+- **Name**: `UIAxes` (single plot section) or `UIAxes_N` (multiple plot sections)
 - **Type**: `matlab.ui.control.UIAxes` in classdef
-- **Default position**: `[15 15 610 440]`
-- No callback properties
+
+**Fixed layout path** (single section, no labels — 640×480 canvas):
+- Position: `[15 15 610 440]`
+
+**Layout engine path** (labels present or multiple sections — 1100×760 canvas):
+- Height: 440px (one total plot section) or 260px (two or more total plot sections)
+- Position set by y_cursor algorithm; see `canvas_layout.md`
 
 ---
 
@@ -36,16 +41,19 @@ The plotting section's code becomes the body of `startupFcn(app)`.
 
 - All variables in the plotting section remain **local** to `startupFcn`.
   No private properties are derived from a plotting section.
-- Recognized plotting function calls have `app.UIAxes` injected as the first
-  argument: `plot(t, x)` → `plot(app.UIAxes, t, x)`.
+- Recognized plotting function calls have `app.UIAxes` (or `app.UIAxes_N`)
+  injected as the first argument: `plot(t, x)` → `plot(app.UIAxes, t, x)`.
 - Blank lines in the original code are stripped.
+- Do NOT set `Position` programmatically in `startupFcn` — this was attempted
+  and made layout instability worse. The root cause of past drift bugs was
+  canvas oversizing (see `canvas_layout.md`), not axes constraint mode.
 
 ---
 
 ## Output: Private Properties Block
 
-The private properties block is always emitted, even when empty. Omitting it
-causes the MATLAB classdef to fail.
+Omit the `properties (Access = private)` block entirely when there are no
+private properties. App Designer does not emit this block when empty.
 
 ---
 
@@ -59,17 +67,18 @@ and `%[app:appDetails]`:
 %[app:runConfiguration]
 %{
 <?xml version='1.0' encoding='UTF-8'?>
-<RunConfigurations>
+<RunConfiguration>
     <StartupFcn>startupFcn</StartupFcn>
-</RunConfigurations>
+</RunConfiguration>
 %}
 ```
+
+Note: the tag is `<RunConfiguration>` (singular), not `<RunConfigurations>`.
 
 ---
 
 ## Out of Scope for This Contract
 
-- Multiple plotting sections (only the last one is used)
 - Plotting sections combined with interactive livecontrols in the same section
 - Variables from the plotting section shared with callback code
 - Custom axes properties (titles, labels, limits)
