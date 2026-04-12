@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Components>
+    <UIFigure name='UIFigure'>
+        <Name>'MATLAB App'</Name>
+        <Position>[100 100 1100 760]</Position>
+        <Children>
+            <TextArea name='CodeTextArea'>
+                <BackgroundColor>[0 0 0]</BackgroundColor>
+                <Editable>'off'</Editable>
+                <FontColor>[1 1 1]</FontColor>
+                <FontName>'Courier New'</FontName>
+                <Position>[20 620 1060 120]</Position>
+                <Value>{'a = 1;'; 'fprintf(''The value of a is %d'',a);'}</Value>
+            </TextArea>
+            <TextArea name='OutputTextArea'>
+                <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>
+                <Editable>'off'</Editable>
+                <FontColor>[0.4 1 0.4]</FontColor>
+                <FontName>'Courier New'</FontName>
+                <Position>[20 490 1060 120]</Position>
+                <Value>''</Value>
+            </TextArea>
+        </Children>
+    </UIFigure>
+</Components>

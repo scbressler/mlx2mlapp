@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -11,6 +11,8 @@ class LabelIR:
 class ButtonSection:
     label: str         # e.g. "Run"
     code_lines: list   # list of str, stripped
+    code_text_area_name: str = ""    # set by codegen: e.g. "RunCodeTextArea"
+    output_text_area_name: str = ""  # set by codegen: e.g. "RunOutputTextArea"
 
 
 @dataclass
@@ -21,13 +23,45 @@ class DropDownSection:
     default_value: str   # e.g. "one" (raw, no quotes)
     callback_name: str   # e.g. "DropDownValueChanged"
     code_lines: list     # remaining lines after bound-var assignment removed
+    code_text_area_name: str = ""    # set by codegen: e.g. "DropDownCodeTextArea"
+    output_text_area_name: str = ""  # set by codegen: e.g. "DropDownOutputTextArea"
+
+
+@dataclass
+class ControlSection:
+    """Generic interactive control: Slider, Spinner, RangeSlider, CheckBox,
+    StateButton, NumericEditField, EditField, ColorPicker, DatePicker, FileBrowser."""
+    control_type: str      # 'slider','spinner','rangeslider','checkbox','statebutton',
+                           # 'editfield_numeric','editfield_text','colorpicker',
+                           # 'datepicker','filebrowser'
+    component_name: str    # PascalCase from livecontrol label, e.g. "Slider"
+    bound_var: str         # MATLAB variable name (LHS of matching assignment); "" if none
+    default_value: str     # MATLAB expression for private property init, e.g. "0", "''"
+    callback_name: str     # e.g. "SliderValueChanged"
+    code_lines: list       # remaining code after bound-var line removed
+    limits: str = ""       # "[min max]" for slider/spinner/rangeslider; "" otherwise
+    step: object = None    # numeric step for spinner; None for others
+    display_format: str = ""   # DatePicker displayFormat, e.g. "dd-MMM-uuuu"
+    browser_type: str = ""     # FileBrowser browserType, e.g. "File"
+    code_text_area_name: str = ""    # set by codegen
+    output_text_area_name: str = ""  # set by codegen
+
+
+@dataclass
+class SectionIR:
+    labels: list             # list of LabelIR (heading/text for this section)
+    plot_lines: list         # all code lines when section has a plot call; else []
+    button_sections: list    # list of ButtonSection in this section
+    dropdown_sections: list  # list of DropDownSection in this section
+    control_sections: list = field(default_factory=list)  # list of ControlSection
+    axes_name: str = ""      # set by codegen: "UIAxes" or "UIAxes_N"
+    code_lines: list = field(default_factory=list)   # raw code lines for CodeTextArea (display sections)
+    code_text_area_name: str = ""    # set by codegen: "CodeTextArea" or "CodeTextArea_N"
+    output_text_area_name: str = ""  # set by codegen: "OutputTextArea" or "OutputTextArea_N"
 
 
 @dataclass
 class AppIR:
     class_name: str
-    private_props: list      # list of (name: str, init_expr: str)
-    button_sections: list    # list of ButtonSection
-    dropdown_sections: list  # list of DropDownSection
-    startup_lines: list      # code lines for startupFcn body; empty = no startup
-    labels: list             # list of LabelIR; empty = no formatted text
+    private_props: list   # list of (name: str, init_expr: str); from init sections
+    sections: list        # ordered list of SectionIR

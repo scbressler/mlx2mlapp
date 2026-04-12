@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="heading"/><w:jc w:val="left"/></w:pPr><w:r><w:t>Sine Wave Demo</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t>This plots a sine wave</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[fs = 1000; % sampling frequency (Hz)
+dur = 1; % signal duration (seconds)
+f0 = 4; % sinusoid frequency (Hz)
+t = (0:1/fs:dur)'; % time vector
+signal = sin(2*pi*f0*t);
+
+plot(t,signal);
+]]></w:t></w:r></w:p></w:body></w:document>

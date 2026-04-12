@@ -51,7 +51,11 @@ Example: `"Drop down"` → `DropDown`
 - **Value**: char vector of the raw default value (e.g. `'one'`)
 - **ValueChangedFcn**: `{ComponentName}ValueChanged`
 - Properties are serialized in alphabetical order (`Items`, `Position`, `Value`,
-  `ValueChangedFcn`); default position: `[270 229 100 22]`
+  `ValueChangedFcn`)
+- Dropdown sections always use the layout engine path (1100×760 canvas).
+  Dropdown height: 32px, full usable width (1060px), left-aligned at x=20.
+- Two TextArea components follow: `{ComponentName}CodeTextArea` and
+  `{ComponentName}OutputTextArea`. See `specs/output_capture.md` for styling.
 
 ---
 
@@ -73,8 +77,9 @@ The callback name is `{ComponentName}ValueChanged`.
 
 The callback body:
 1. First line: `app.{bound_var} = app.{ComponentName}.Value;`
-2. Remaining code lines from the section (bound-var assignment removed),
-   with all known private property names prefixed as `app.{name}`.
+2. `diary` capture block (see `specs/output_capture.md`)
+3. Remaining code lines (bound-var assignment removed), with private prop names prefixed `app.`
+4. `diary` teardown and `app.{ComponentName}OutputTextArea.Value = ...`
 
 Example:
 
@@ -84,7 +89,18 @@ Original code (`value  = "one";\ndisp(value);`), bound var `value`:
 % Value changed function: DropDown
 function DropDownValueChanged(app, event)
     app.value = app.DropDown.Value;
+    diaryFile = [tempname '.txt'];
+    diary(diaryFile);
+    diary('on');
     disp(app.value);
+    diary('off');
+    if exist(diaryFile, 'file')
+        capturedOutput = fileread(diaryFile);
+        delete(diaryFile);
+    else
+        capturedOutput = '';
+    end
+    app.DropDownOutputTextArea.Value = strsplit(strtrim(capturedOutput), newline);
 end
 ```
 

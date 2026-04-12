@@ -13,15 +13,18 @@ from .codegen import generate_layout_xml, generate_m
 
 
 def translate(xml_path: str, class_name: str, app_id: str = None,
-              release: str = "R2025b") -> tuple:
+              release: str = "R2025b", view_mode: str = "output_inline") -> tuple:
     """
     Translate a Live Script document.xml into App Designer plain-text files.
+
+    Args:
+        view_mode: Layout strategy. One of "output_inline" (default), "hide_code".
 
     Returns:
         (m_text, layout_xml_text)
     """
     ir = parse_document(xml_path, class_name)
-    layout_xml = generate_layout_xml(ir)
+    layout_xml = generate_layout_xml(ir, view_mode=view_mode)
     m_text = generate_m(ir, layout_xml, app_id=app_id, release=release)
     return m_text, layout_xml
 

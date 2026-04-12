@@ -2,7 +2,7 @@ import json
 import re
 import xml.etree.ElementTree as ET
 
-from .ir import AppIR, ButtonSection, DropDownSection, LabelIR
+from .ir import AppIR, ButtonSection, ControlSection, DropDownSection, LabelIR, SectionIR
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -35,39 +35,71 @@ def parse_document(xml_path: str, class_name: str) -> AppIR:
         sections.append(current)
 
     private_props = []
-    button_sections = []
-    dropdown_sections = []
-    startup_lines = []
-    labels = []
+    section_irs = []
 
     for paras in sections:
-        code_text, livecontrol, section_labels = _extract_section(paras)
-        labels.extend(section_labels)
+        code_text, livecontrol, labels = _extract_section(paras)
 
-        if not code_text.strip():
+        # Init section: no livecontrol, no plot, no labels — pure assignments
+        if not code_text.strip() and not labels and livecontrol is None:
             continue
+
+        if livecontrol is None and not _has_plot_call(code_text) and not labels:
+            lines = [l for l in code_text.strip().splitlines() if l.strip()]
+            if _is_pure_assignment(lines):
+                # Assignment-only section → private props, no SectionIR
+                private_props.extend(_parse_assignments(code_text))
+            else:
+                # Display section: has non-assignment code (disp, fprintf, etc.)
+                section_irs.append(SectionIR(
+                    labels=[],
+                    plot_lines=[],
+                    button_sections=[],
+                    dropdown_sections=[],
+                    code_lines=lines,
+                ))
+            continue
+
+        # Determine what this section produces
+        plot_lines = []
+        sec_buttons = []
+        sec_dropdowns = []
+        sec_controls = []
 
         if livecontrol is None:
             if _has_plot_call(code_text):
-                startup_lines = [l for l in code_text.strip().splitlines() if l.strip()]
+                plot_lines = [l for l in code_text.strip().splitlines() if l.strip()]
             else:
+                # Labels only (text-only section) or assignments mixed with labels
                 private_props.extend(_parse_assignments(code_text))
         elif livecontrol.get("type") == "button":
             label = livecontrol["data"]["text"]
             lines = [l for l in code_text.strip().splitlines() if l.strip()]
-            button_sections.append(ButtonSection(label=label, code_lines=lines))
+            sec_buttons.append(ButtonSection(label=label, code_lines=lines))
         elif livecontrol.get("type") == "comboBox":
             sec, prop = _parse_dropdown_section(livecontrol["data"], code_text)
-            dropdown_sections.append(sec)
+            sec_dropdowns.append(sec)
             private_props.append(prop)
+        else:
+            ctrl_type = _resolve_control_type(livecontrol)
+            if ctrl_type:
+                sec, prop = _parse_control_section(livecontrol["data"], code_text, ctrl_type)
+                sec_controls.append(sec)
+                if prop:
+                    private_props.append(prop)
+
+        section_irs.append(SectionIR(
+            labels=labels,
+            plot_lines=plot_lines,
+            button_sections=sec_buttons,
+            dropdown_sections=sec_dropdowns,
+            control_sections=sec_controls,
+        ))
 
     return AppIR(
         class_name=class_name,
         private_props=private_props,
-        button_sections=button_sections,
-        dropdown_sections=dropdown_sections,
-        startup_lines=startup_lines,
-        labels=labels,
+        sections=section_irs,
     )
 
 
@@ -169,6 +201,16 @@ def _has_plot_call(code_text: str) -> bool:
     return False
 
 
+def _is_pure_assignment(lines: list) -> bool:
+    """Return True if all non-empty lines are simple variable assignments."""
+    if not lines:
+        return True
+    for line in lines:
+        if not re.match(r"^\s*\w+\s*=\s*.+?;?\s*$", line.strip()):
+            return False
+    return True
+
+
 def _parse_assignments(code_text: str) -> list:
     """Extract (name, value) pairs from simple assignment statements."""
     assignments = []
@@ -177,3 +219,108 @@ def _parse_assignments(code_text: str) -> list:
         if m:
             assignments.append((m.group(1), m.group(2)))
     return assignments
+
+
+# ---------------------------------------------------------------------------
+# New control type support
+# ---------------------------------------------------------------------------
+
+# Map from livecontrol "type" string → internal control_type token.
+# editfield is handled separately (requires valueType check).
+_CONTROL_TYPE_MAP = {
+    "slider":      "slider",
+    "spinner":     "spinner",
+    "rangeslider": "rangeslider",
+    "checkbox":    "checkbox",
+    "statebutton": "statebutton",
+    "colorPicker": "colorpicker",
+    "datePicker":  "datepicker",
+    "filebrowser": "filebrowser",
+}
+
+
+def _resolve_control_type(livecontrol: dict) -> str:
+    """Return internal control_type string, or None if unrecognised."""
+    t = livecontrol.get("type", "")
+    if t == "editfield":
+        vt = livecontrol.get("data", {}).get("valueType", "")
+        return "editfield_numeric" if vt == "Double" else "editfield_text"
+    return _CONTROL_TYPE_MAP.get(t)
+
+
+def _json_default_to_matlab(val, control_type: str) -> str:
+    """Convert a JSON defaultValue to a MATLAB expression for the properties block."""
+    if val is None:
+        return "NaT"  # DatePicker has no defaultValue
+    if isinstance(val, bool):
+        return "true" if val else "false"
+    if isinstance(val, (int, float)):
+        # Emit as integer when possible (0 not 0.0)
+        return str(int(val)) if val == int(val) else str(val)
+    # String value from JSON
+    stripped = str(val).strip('"')
+    if control_type in ("editfield_text", "filebrowser"):
+        # Convert MATLAB double-quoted string default to char vector
+        return f"'{stripped}'"
+    # rangeslider "[0 100]", colorpicker "[1 1 1]" — keep as array literal
+    return stripped
+
+
+def _normalize_for_match(val):
+    """Normalise a JSON defaultValue for comparison with code RHS strings."""
+    if val is None:
+        return None
+    if isinstance(val, bool):
+        return "false" if not val else "true"
+    if isinstance(val, (int, float)):
+        return str(int(val)) if val == int(val) else str(val)
+    # Strip outer double-quotes (handles MATLAB string literals in JSON)
+    return str(val).strip('"')
+
+
+def _parse_control_section(data: dict, code_text: str, control_type: str):
+    """Return (ControlSection, prop_tuple_or_None) for a generic livecontrol."""
+    label = data.get("label", data.get("text", "Control"))
+    component_name = _to_pascal_case(label)
+    callback_name = f"{component_name}ValueChanged"
+
+    default_value_raw = data.get("defaultValue", None)
+    matlab_default = _json_default_to_matlab(default_value_raw, control_type)
+    target = _normalize_for_match(default_value_raw)
+
+    # Find bound variable: first assignment whose RHS matches the default value.
+    lines = [l for l in code_text.strip().splitlines() if l.strip()]
+    bound_var = None
+    remaining_lines = []
+    for line in lines:
+        m = re.match(r"^\s*(\w+)\s*=\s*(.+?)\s*;?\s*$", line.strip())
+        if bound_var is None and m and target is not None:
+            rhs = m.group(2).strip().strip('"')
+            if rhs == target or rhs.lower() == target.lower():
+                bound_var = m.group(1)
+                continue
+        remaining_lines.append(line)
+
+    # Numeric range (slider, spinner, rangeslider)
+    limits = ""
+    if "min" in data and "max" in data:
+        limits = f"[{data['min']} {data['max']}]"
+
+    step = data.get("step", None)
+    display_format = data.get("displayFormat", "")
+    browser_type = data.get("browserType", "")
+
+    sec = ControlSection(
+        control_type=control_type,
+        component_name=component_name,
+        bound_var=bound_var or "",
+        default_value=matlab_default,
+        callback_name=callback_name,
+        code_lines=remaining_lines,
+        limits=limits,
+        step=step,
+        display_format=display_format,
+        browser_type=browser_type,
+    )
+    prop = (bound_var, matlab_default) if bound_var else None
+    return sec, prop

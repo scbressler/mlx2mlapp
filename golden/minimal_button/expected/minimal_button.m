@@ -2,8 +2,10 @@ classdef minimal_button < matlab.apps.App
 
     % Properties that correspond to app components
     properties (Access = public)
-        UIFigure   matlab.ui.Figure
-        RunButton  matlab.ui.control.Button
+        UIFigure           matlab.ui.Figure
+        RunButton          matlab.ui.control.Button
+        RunCodeTextArea    matlab.ui.control.TextArea
+        RunOutputTextArea  matlab.ui.control.TextArea
     end
 
     
@@ -17,8 +19,19 @@ classdef minimal_button < matlab.apps.App
 
         % Button pushed function: RunButton
         function RunButtonPushed(app, event)
+            diaryFile = [tempname '.txt'];
+            diary(diaryFile);
+            diary('on');
             app.counter = app.counter + 1;
             disp(app.counter);
+            diary('off');
+            if exist(diaryFile, 'file')
+                capturedOutput = fileread(diaryFile);
+                delete(diaryFile);
+            else
+                capturedOutput = '';
+            end
+            app.RunOutputTextArea.Value = strsplit(strtrim(capturedOutput), newline);
         end
     end
 
@@ -32,13 +45,29 @@ end
 <Components>
     <UIFigure name='UIFigure'>
         <Name>'MATLAB App'</Name>
-        <Position>[100 100 640 480]</Position>
+        <Position>[100 100 1100 760]</Position>
         <Children>
             <Button name='RunButton'>
                 <ButtonPushedFcn>RunButtonPushed</ButtonPushedFcn>
-                <Position>[272 219 100 22]</Position>
+                <Position>[20 708 1060 32]</Position>
                 <Text>'Run'</Text>
             </Button>
+            <TextArea name='RunCodeTextArea'>
+                <BackgroundColor>[0 0 0]</BackgroundColor>
+                <Editable>'off'</Editable>
+                <FontColor>[1 1 1]</FontColor>
+                <FontName>'Courier New'</FontName>
+                <Position>[20 578 1060 120]</Position>
+                <Value>{'counter = counter + 1;'; 'disp(counter);'}</Value>
+            </TextArea>
+            <TextArea name='RunOutputTextArea'>
+                <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>
+                <Editable>'off'</Editable>
+                <FontColor>[0.4 1 0.4]</FontColor>
+                <FontName>'Courier New'</FontName>
+                <Position>[20 448 1060 120]</Position>
+                <Value>''</Value>
+            </TextArea>
         </Children>
     </UIFigure>
 </Components>
