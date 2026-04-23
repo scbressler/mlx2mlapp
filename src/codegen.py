@@ -53,14 +53,52 @@ _CONTROL_COMPONENT = {
 }
 
 _CONTROL_HEIGHT = 32  # px — same as Button/DropDown
+# UISlider (horizontal) has a fixed track height in MATLAB App Designer.
+# Setting a larger height triggers "The height of this component cannot be
+# changed" warning, which then corrupts tick-label rendering (causing
+# "Dimensions of position argument must match dimensions of text argument").
+_SLIDER_NATURAL_HEIGHT = 3  # px — MATLAB's fixed horizontal-slider track height
+
+# Labeled controls require a sibling <Label> element and a label= attribute
+_LABELED_CONTROL_TYPES = frozenset({
+    "spinner", "rangeslider", "editfield_numeric", "editfield_text", "datepicker"
+})
+_CTRL_LABEL_W = 100    # label component width (px)
+_CTRL_LABEL_H = 22     # label component height (px)
+_CTRL_LABEL_GAP = 10   # gap between label and control (px)
+_SLIDER_TICK_EXTRA = 20  # extra gap below slider/rangeslider for tick marks
 
 
 def _render_control_xml(ctrl: ControlSection, bottom: int, width: int,
                         margin_x: int, indent: str = "            ") -> list:
-    """Return XML lines for a ControlSection component (no TextAreas)."""
+    """Return XML lines for a ControlSection component (no TextAreas).
+
+    For labeled control types, also emits a sibling <Label> element before the
+    main component and adjusts the control's x/width to make room for the label.
+    """
     tag, _ = _CONTROL_COMPONENT.get(ctrl.control_type, ("EditField", "matlab.ui.control.EditField"))
-    pos = f"[{margin_x} {bottom} {width} {_CONTROL_HEIGHT}]"
-    lines = [f"{indent}<{tag} name='{ctrl.component_name}'>"]
+    labeled = ctrl.control_type in _LABELED_CONTROL_TYPES
+    # UISlider has a fixed track height in App Designer; use 3px to avoid the
+    # "height cannot be changed" warning that corrupts tick-label rendering.
+    ctrl_h = _SLIDER_NATURAL_HEIGHT if ctrl.control_type == "slider" else _CONTROL_HEIGHT
+    lines = []
+
+    if labeled:
+        label_name = f"{ctrl.component_name}Label"
+        label_bottom = bottom + (_CONTROL_HEIGHT - _CTRL_LABEL_H) // 2
+        label_pos = f"[{margin_x} {label_bottom} {_CTRL_LABEL_W} {_CTRL_LABEL_H}]"
+        ctrl_x = margin_x + _CTRL_LABEL_W + _CTRL_LABEL_GAP
+        ctrl_w = width - _CTRL_LABEL_W - _CTRL_LABEL_GAP
+        lines.append(f"{indent}<Label name='{label_name}'>")
+        lines.append(f"{indent}    <HorizontalAlignment>'right'</HorizontalAlignment>")
+        lines.append(f"{indent}    <Position>{label_pos}</Position>")
+        lines.append(f"{indent}    <Text>'{ctrl.component_name}'</Text>")
+        lines.append(f"{indent}</Label>")
+        lines.append(f"{indent}<{tag} name='{ctrl.component_name}' label='{label_name}'>")
+        pos = f"[{ctrl_x} {bottom} {ctrl_w} {ctrl_h}]"
+    else:
+        pos = f"[{margin_x} {bottom} {width} {ctrl_h}]"
+        lines.append(f"{indent}<{tag} name='{ctrl.component_name}'>")
 
     # Properties in alphabetical order (Children last — not applicable here)
     # DisplayFormat (DatePicker)
@@ -96,6 +134,35 @@ _PLOT_FUNCTIONS = frozenset({
     "semilogy", "stem", "stairs", "area", "fill", "pie",
 })
 
+# Regex: line ends with ; optionally followed by an inline comment
+_SUPPRESSED_LINE_RE = re.compile(r';\s*(%.*)?$')
+
+# Functions that always print to the MATLAB command window, even with ;
+_ALWAYS_PRINTS = ('disp(', 'fprintf(', 'warning(', 'error(')
+
+# Control-flow keywords — they don't produce output without ;
+_CONTROL_FLOW_KW = frozenset({
+    'for', 'end', 'if', 'else', 'elseif', 'while', 'try', 'catch',
+    'switch', 'case', 'otherwise', 'break', 'continue', 'return', 'parfor',
+})
+
+
+def _produces_output(code_lines: list) -> bool:
+    """Return True if any line would produce MATLAB command-line text output."""
+    for raw in code_lines:
+        line = raw.strip()
+        if not line or line.startswith('%'):
+            continue
+        if any(line.startswith(f) for f in _ALWAYS_PRINTS):
+            return True
+        if _SUPPRESSED_LINE_RE.search(line):
+            continue
+        first_word = line.split()[0] if line.split() else ''
+        if first_word in _CONTROL_FLOW_KW:
+            continue
+        return True
+    return False
+
 
 def _assign_text_area_names(ir: AppIR, view_mode: str = "output_inline") -> None:
     """Set code/output TextArea names on display sections, buttons, and dropdowns.
@@ -119,16 +186,23 @@ def _assign_text_area_names(ir: AppIR, view_mode: str = "output_inline") -> None
     for sec in ir.sections:
         for btn in sec.button_sections:
             if not hide_code:
-                btn.code_text_area_name = f"{btn.label}CodeTextArea"
-            btn.output_text_area_name = f"{btn.label}OutputTextArea"
+                btn.code_text_area_name = f"{btn.component_name}CodeTextArea"
+            if _produces_output(btn.code_lines):
+                btn.output_text_area_name = f"{btn.component_name}OutputTextArea"
         for dd in sec.dropdown_sections:
-            if not hide_code:
+            # Only emit CodeTextArea when there are code lines to display
+            if not hide_code and dd.code_lines:
                 dd.code_text_area_name = f"{dd.component_name}CodeTextArea"
-            dd.output_text_area_name = f"{dd.component_name}OutputTextArea"
+            # Only emit OutputTextArea when the callback produces console output
+            if _produces_output(dd.code_lines):
+                dd.output_text_area_name = f"{dd.component_name}OutputTextArea"
         for ctrl in sec.control_sections:
-            if not hide_code:
+            # Only emit CodeTextArea when there are code lines to display
+            if not hide_code and ctrl.code_lines:
                 ctrl.code_text_area_name = f"{ctrl.component_name}CodeTextArea"
-            ctrl.output_text_area_name = f"{ctrl.component_name}OutputTextArea"
+            # Only emit OutputTextArea when the callback produces console output
+            if _produces_output(ctrl.code_lines):
+                ctrl.output_text_area_name = f"{ctrl.component_name}OutputTextArea"
 
 
 def _escape_matlab_str(s: str) -> str:
@@ -136,12 +210,39 @@ def _escape_matlab_str(s: str) -> str:
     return s.replace("'", "''")
 
 
+def _matlab_str_value(text: str) -> str:
+    """Format text as a MATLAB char literal for an XML property value.
+
+    If the text contains no single quotes: use a single-quoted char literal.
+    If it contains single quotes: use char("...") to avoid '' escape sequences
+    (which crash App Designer) while ensuring the result is a char vector, not
+    a MATLAB string type. Double-quotes in the text are escaped as "".
+    """
+    if "'" not in text:
+        return f"'{text}'"
+    return f'char("{text.replace(chr(34), chr(34)*2)}")'
+
+
 def _code_lines_xml_value(lines: list) -> str:
-    """Format code lines as a MATLAB string or cell array for XML Value."""
-    escaped = [f"'{_escape_matlab_str(line)}'" for line in lines]
-    if len(escaped) == 1:
-        return escaped[0]
-    return "{" + "; ".join(escaped) + "}"
+    """Format code lines as a MATLAB char or cell array of chars for XML Value.
+
+    Two regimes:
+    1. No single quotes in code: plain single-quoted char literals — 'line'.
+    2. Single quotes present: char("line") — converts a double-quoted string
+       literal to a char vector, avoiding '' escape sequences (which crash App
+       Designer) while producing the char type TextArea.Value requires.
+       Double-quotes in code are escaped as "".
+    """
+    if not lines:
+        return "''"
+    has_single = any("'" in line for line in lines)
+    if not has_single:
+        formatted = [f"'{line}'" for line in lines]
+    else:
+        formatted = [f'char("{line.replace(chr(34), chr(34)*2)}")'  for line in lines]
+    if len(formatted) == 1:
+        return formatted[0]
+    return "{" + "; ".join(formatted) + "}"
 
 
 def _assign_axes_names(ir: AppIR) -> None:
@@ -191,13 +292,13 @@ def _generate_layout_xml_fixed(ir: AppIR) -> str:
         "        <Children>",
     ]
     for sec in button_sections:
-        btn_name = f"{sec.label}Button"
-        cb_name = f"{sec.label}ButtonPushed"
+        btn_name = f"{sec.component_name}Button"
+        cb_name = f"{sec.component_name}ButtonPushed"
         lines += [
             f"            <Button name='{btn_name}'>",
             f"                <ButtonPushedFcn>{cb_name}</ButtonPushedFcn>",
             f"                <Position>{_BUTTON_POSITION}</Position>",
-            f"                <Text>'{sec.label}'</Text>",
+            f"                <Text>{_matlab_str_value(sec.label)}</Text>",
             "            </Button>",
         ]
     for sec in dropdown_sections:
@@ -253,22 +354,22 @@ def _generate_layout_xml_with_engine(ir: AppIR) -> str:
                 child_lines.append(f"                <FontSize>18</FontSize>")
                 child_lines.append(f"                <FontWeight>'bold'</FontWeight>")
             child_lines.append(f"                <Position>{pos}</Position>")
-            child_lines.append(f"                <Text>'{label.text}'</Text>")
+            child_lines.append(f"                <Text>{_matlab_str_value(label.text)}</Text>")
             if label.style == 'text':
                 child_lines.append(f"                <WordWrap>'on'</WordWrap>")
             child_lines.append(f"            </Label>")
 
         # Button sections
         for btn in sec.button_sections:
-            btn_name = f"{btn.label}Button"
-            cb_name = f"{btn.label}ButtonPushed"
+            btn_name = f"{btn.component_name}Button"
+            cb_name = f"{btn.component_name}ButtonPushed"
             bottom = y_cursor - _BUTTON_HEIGHT
             pos = f"[{_LAYOUT_MARGIN} {bottom} {_LAYOUT_USABLE_W} {_BUTTON_HEIGHT}]"
             child_lines += [
                 f"            <Button name='{btn_name}'>",
                 f"                <ButtonPushedFcn>{cb_name}</ButtonPushedFcn>",
                 f"                <Position>{pos}</Position>",
-                f"                <Text>'{btn.label}'</Text>",
+                f"                <Text>{_matlab_str_value(btn.label)}</Text>",
                 "            </Button>",
             ]
             y_cursor = bottom - _ROW_GAP
@@ -353,7 +454,8 @@ def _generate_layout_xml_with_engine(ir: AppIR) -> str:
             ctrl_lines = _render_control_xml(ctrl, y_cursor - _CONTROL_HEIGHT,
                                             _LAYOUT_USABLE_W, _LAYOUT_MARGIN)
             child_lines += ctrl_lines
-            y_cursor = (y_cursor - _CONTROL_HEIGHT) - _ROW_GAP
+            tick_extra = _SLIDER_TICK_EXTRA if ctrl.control_type in ("slider", "rangeslider") else 0
+            y_cursor = (y_cursor - _CONTROL_HEIGHT) - _ROW_GAP - tick_extra
             if ctrl.code_text_area_name:
                 bottom = y_cursor - _CODE_TEXT_AREA_HEIGHT
                 pos = f"[{_LAYOUT_MARGIN} {bottom} {_LAYOUT_USABLE_W} {_CODE_TEXT_AREA_HEIGHT}]"
@@ -484,22 +586,22 @@ def _generate_layout_xml_right(ir: AppIR) -> str:
                 child_lines.append(f"                <FontSize>18</FontSize>")
                 child_lines.append(f"                <FontWeight>'bold'</FontWeight>")
             child_lines.append(f"                <Position>{pos}</Position>")
-            child_lines.append(f"                <Text>'{label.text}'</Text>")
+            child_lines.append(f"                <Text>{_matlab_str_value(label.text)}</Text>")
             if label.style == 'text':
                 child_lines.append(f"                <WordWrap>'on'</WordWrap>")
             child_lines.append(f"            </Label>")
 
         # Left column: button sections; right column: their output areas
         for btn in sec.button_sections:
-            btn_name = f"{btn.label}Button"
-            cb_name = f"{btn.label}ButtonPushed"
+            btn_name = f"{btn.component_name}Button"
+            cb_name = f"{btn.component_name}ButtonPushed"
             bottom = left_cursor - _BUTTON_HEIGHT
             pos = f"[{_LAYOUT_MARGIN} {bottom} {_LEFT_COL_W} {_BUTTON_HEIGHT}]"
             child_lines += [
                 f"            <Button name='{btn_name}'>",
                 f"                <ButtonPushedFcn>{cb_name}</ButtonPushedFcn>",
                 f"                <Position>{pos}</Position>",
-                f"                <Text>'{btn.label}'</Text>",
+                f"                <Text>{_matlab_str_value(btn.label)}</Text>",
                 "            </Button>",
             ]
             left_cursor = bottom - _ROW_GAP
@@ -584,7 +686,8 @@ def _generate_layout_xml_right(ir: AppIR) -> str:
             ctrl_lines = _render_control_xml(ctrl, left_cursor - _CONTROL_HEIGHT,
                                             _LEFT_COL_W, _LAYOUT_MARGIN)
             child_lines += ctrl_lines
-            left_cursor = (left_cursor - _CONTROL_HEIGHT) - _ROW_GAP
+            tick_extra = _SLIDER_TICK_EXTRA if ctrl.control_type in ("slider", "rangeslider") else 0
+            left_cursor = (left_cursor - _CONTROL_HEIGHT) - _ROW_GAP - tick_extra
             code_bottom = None
             if ctrl.code_text_area_name:
                 code_bottom = left_cursor - _CODE_TEXT_AREA_HEIGHT
@@ -717,8 +820,8 @@ def generate_m(ir: AppIR, layout_xml: str, app_id: str = None,
             component_names.append(sec.axes_name)
             type_map[sec.axes_name] = "matlab.ui.control.UIAxes"
         for b in sec.button_sections:
-            component_names.append(f"{b.label}Button")
-            type_map[f"{b.label}Button"] = "matlab.ui.control.Button"
+            component_names.append(f"{b.component_name}Button")
+            type_map[f"{b.component_name}Button"] = "matlab.ui.control.Button"
             if b.code_text_area_name:
                 component_names.append(b.code_text_area_name)
                 type_map[b.code_text_area_name] = "matlab.ui.control.TextArea"
@@ -739,6 +842,10 @@ def generate_m(ir: AppIR, layout_xml: str, app_id: str = None,
                                                      ("EditField", "matlab.ui.control.EditField"))
             component_names.append(ctrl.component_name)
             type_map[ctrl.component_name] = matlab_class
+            if ctrl.control_type in _LABELED_CONTROL_TYPES:
+                label_name = f"{ctrl.component_name}Label"
+                component_names.append(label_name)
+                type_map[label_name] = "matlab.ui.control.Label"
             if ctrl.code_text_area_name:
                 component_names.append(ctrl.code_text_area_name)
                 type_map[ctrl.code_text_area_name] = "matlab.ui.control.TextArea"
@@ -776,8 +883,8 @@ def generate_m(ir: AppIR, layout_xml: str, app_id: str = None,
     # --- Callbacks block ---
     cb_lines = []
     for sec in all_button_sections:
-        btn_name = f"{sec.label}Button"
-        cb_name = f"{sec.label}ButtonPushed"
+        btn_name = f"{sec.component_name}Button"
+        cb_name = f"{sec.component_name}ButtonPushed"
         cb_lines.append(f"        % Button pushed function: {btn_name}")
         cb_lines.append(f"        function {cb_name}(app, event)")
         if sec.output_text_area_name:
@@ -819,6 +926,7 @@ def generate_m(ir: AppIR, layout_xml: str, app_id: str = None,
     for ctrl in all_control_sections:
         cb_lines.append(f"        % Value changed function: {ctrl.component_name}")
         cb_lines.append(f"        function {ctrl.callback_name}(app, event)")
+        body_start = len(cb_lines)
         if ctrl.bound_var:
             cb_lines.append(f"            app.{ctrl.bound_var} = app.{ctrl.component_name}.Value;")
         if ctrl.output_text_area_name:
@@ -836,6 +944,8 @@ def generate_m(ir: AppIR, layout_xml: str, app_id: str = None,
             cb_lines.append("                capturedOutput = '';")
             cb_lines.append("            end")
             cb_lines.append(f"            app.{ctrl.output_text_area_name}.Value = strsplit(strtrim(capturedOutput), newline);")
+        if len(cb_lines) == body_start:
+            cb_lines.append("            % value changed")
         cb_lines.append("        end")
     if has_startup:
         cb_lines.append("        % Code that executes after component creation")

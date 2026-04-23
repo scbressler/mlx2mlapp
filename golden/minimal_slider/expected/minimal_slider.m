@@ -49,7 +49,7 @@ end
         <Children>
             <Slider name='Slider'>
                 <Limits>[-100 100]</Limits>
-                <Position>[20 708 1060 32]</Position>
+                <Position>[20 708 1060 3]</Position>
                 <Value>0</Value>
                 <ValueChangedFcn>SliderValueChanged</ValueChangedFcn>
             </Slider>
@@ -58,7 +58,7 @@ end
                 <Editable>'off'</Editable>
                 <FontColor>[1 1 1]</FontColor>
                 <FontName>'Courier New'</FontName>
-                <Position>[20 578 1060 120]</Position>
+                <Position>[20 558 1060 120]</Position>
                 <Value>'disp(slider)'</Value>
             </TextArea>
             <TextArea name='SliderOutputTextArea'>
@@ -66,7 +66,7 @@ end
                 <Editable>'off'</Editable>
                 <FontColor>[0.4 1 0.4]</FontColor>
                 <FontName>'Courier New'</FontName>
-                <Position>[20 448 1060 120]</Position>
+                <Position>[20 428 1060 120]</Position>
                 <Value>''</Value>
             </TextArea>
         </Children>

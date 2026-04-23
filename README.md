@@ -39,12 +39,13 @@ Keeping this boundary explicit is essential for progress.
 │       └── expected/<name>.m
 │           expected/<name>.xml
 ├── src/            # Translation logic
-│   ├── ir.py           IR dataclasses (AppIR, SectionIR, etc.)
-│   ├── parse.py        document.xml → AppIR
-│   ├── codegen.py      AppIR → .m text + layout XML
-│   └── translate.py    entry point (module + CLI)
+│   ├── ir.py               IR dataclasses (AppIR, SectionIR, etc.)
+│   ├── parse.py            document.xml (from .mlx) → AppIR
+│   ├── parse_plaintext.py  plain-text .m Live Script → AppIR
+│   ├── codegen.py          AppIR → .m text + layout XML
+│   └── translate.py        entry point (module + CLI); auto-detects input format
 ├── tests/          # Golden tests (one file per exemplar)
-├── matlab/         # Source .mlx files and App Designer reference examples
+├── matlab/         # Source .mlx files and plain-text .m Live Scripts
 └── README.md
 ```
 
@@ -134,6 +135,33 @@ If App Designer opens the app cleanly and the user can keep working, the transla
 
 ---
 
+## Supported Input Formats
+
+The translator auto-detects the input format from the file extension:
+
+| Extension | Format | Parser |
+|-----------|--------|--------|
+| `.m` | Plain-text Live Script (R2025a+) | `parse_plaintext.py` |
+| `.mlx` | Binary Live Script (ZIP archive) | `parse.py` via temp-file unzip |
+| `.xml` | Raw `document.xml` (legacy/test path) | `parse.py` |
+
+**Plain-text `.m`:** Sections delimited by `%[text]` lines; controls annotated inline as
+`%[control:type:uuid]`; full control JSON in `%[appendix]` block.
+
+**Binary `.mlx`:** ZIP archive containing `matlab/document.xml` (OOXML). Real MATLAB-generated
+`.mlx` files differ from hand-crafted golden fixtures in two ways:
+- Control type inferred from `className` XML attribute (e.g. `SpinnerControlNode`) — no `"type"` field in context JSON
+- Field names `minimum`/`maximum` instead of `min`/`max` in control data
+
+**CLI usage:**
+
+```bash
+python -m src.translate script.mlx MyApp [--release R2025b] [--view-mode output_inline] [--out-dir .]
+python -m src.translate script.m   MyApp [--release R2025b] [--view-mode output_inline] [--out-dir .]
+```
+
+---
+
 ## Running Tests
 
 ```bash
@@ -145,6 +173,32 @@ files in `golden/*/expected/`. Metadata fields (`AppId`, `MATLABRelease`) are fi
 to known values in the test fixture so output is deterministic.
 
 Currently: **50 tests across 25 golden exemplars**, all passing.
+
+---
+
+## Known App Designer Format Constraints
+
+These constraints were discovered through empirical testing and affect every generated app.
+Full details and rationale in `CLAUDE.md` (Hard-Won Decisions).
+
+**String encoding for single quotes** — XML `<Value>` and `<Text>` properties must use
+`char("text with 'quotes'")` when the string contains single quotes. Bare `'...'` with `''`
+escapes crash App Designer when labeled components are present. Bare `"..."` (MATLAB `string`
+type, not `char`) causes type-mismatch errors in TextAreas and Labels. Implemented in
+`_code_lines_xml_value()` and `_matlab_str_value()` in `codegen.py`.
+
+**UISlider height** — App Designer's horizontal Slider has a fixed track height of 3 px.
+Setting a larger height triggers "The height of this component cannot be changed", which
+corrupts tick-label rendering. All Slider `<Position>` entries must use height 3, not 32.
+
+**UISlider minimum y-position** — Sliders placed too close to the canvas bottom (confirmed
+failing at y = 42 on the 760 px canvas) trigger "Dimensions of position argument…" on file
+open. Avoid y < ~100. Root cause under investigation.
+
+**Labeled components** — Five types (`Spinner`, `RangeSlider`, `NumericEditField`,
+`EditField`, `DatePicker`) require a `<Label>` sibling element and a `label=` attribute on
+the main component. Omitting either crashes App Designer with "Index exceeds the number of
+array elements."
 
 ---
 

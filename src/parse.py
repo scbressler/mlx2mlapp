@@ -21,16 +21,35 @@ def parse_document(xml_path: str, class_name: str) -> AppIR:
     root = tree.getroot()
     body = root.find(_w("body"))
 
-    # Group paragraphs into sections separated by sectPr paragraphs.
+    # Group paragraphs into sections.
+    # Two splitting triggers:
+    #   1. sectPr paragraph (explicit section break in hand-crafted / older .mlx)
+    #   2. heading paragraph that appears AFTER code in the current section
+    #      (real MATLAB .mlx files use headings as logical section dividers
+    #       rather than emitting sectPr elements)
     sections = []
     current = []
+    has_code_in_current = False
     for para in body.findall(_w("p")):
         ppr = para.find(_w("pPr"))
+        style = None
+        if ppr is not None:
+            ps = ppr.find(_w("pStyle"))
+            if ps is not None:
+                style = ps.get(_w("val"))
         if ppr is not None and ppr.find(_w("sectPr")) is not None:
             sections.append(current)
             current = []
+            has_code_in_current = False
+        elif style == "heading" and has_code_in_current:
+            # Heading after code → flush and start a new section with this heading
+            sections.append(current)
+            current = [para]
+            has_code_in_current = False
         else:
             current.append(para)
+            if style == "code":
+                has_code_in_current = True
     if current:
         sections.append(current)
 
@@ -38,11 +57,20 @@ def parse_document(xml_path: str, class_name: str) -> AppIR:
     section_irs = []
 
     for paras in sections:
-        code_text, livecontrol, labels = _extract_section(paras)
+        code_text, livecontrols, labels = _extract_section(paras)
 
-        # Init section: no livecontrol, no plot, no labels — pure assignments
-        if not code_text.strip() and not labels and livecontrol is None:
+        # Init section: no livecontrols, no plot, no labels — pure assignments
+        if not code_text.strip() and not labels and not livecontrols:
             continue
+
+        # Multi-control paragraph: distribute code among controls
+        if len(livecontrols) > 1:
+            _distribute_multi_control_section(
+                code_text, livecontrols, labels, private_props, section_irs
+            )
+            continue
+
+        livecontrol = livecontrols[0] if livecontrols else None
 
         if livecontrol is None and not _has_plot_call(code_text) and not labels:
             lines = [l for l in code_text.strip().splitlines() if l.strip()]
@@ -75,7 +103,10 @@ def parse_document(xml_path: str, class_name: str) -> AppIR:
         elif livecontrol.get("type") == "button":
             label = livecontrol["data"]["text"]
             lines = [l for l in code_text.strip().splitlines() if l.strip()]
-            sec_buttons.append(ButtonSection(label=label, code_lines=lines))
+            sec_buttons.append(ButtonSection(
+                label=label, code_lines=lines,
+                component_name=_to_pascal_case(label),
+            ))
         elif livecontrol.get("type") == "comboBox":
             sec, prop = _parse_dropdown_section(livecontrol["data"], code_text)
             sec_dropdowns.append(sec)
@@ -104,9 +135,9 @@ def parse_document(xml_path: str, class_name: str) -> AppIR:
 
 
 def _extract_section(paras):
-    """Return (code_text, livecontrol_dict_or_None, labels) for a list of paragraphs."""
+    """Return (code_text, livecontrols_list, labels) for a list of paragraphs."""
     code_text = ""
-    livecontrol = None
+    livecontrols = []
     labels = []
 
     for para in paras:
@@ -133,9 +164,16 @@ def _extract_section(paras):
                 cxpr = cx.find(_w("customXmlPr"))
                 if cxpr is None:
                     continue
+                ctx = None
+                class_name_attr = ""
                 for attr in cxpr.findall(_w("attr")):
-                    if attr.get(_w("name")) == "context":
-                        livecontrol = json.loads(attr.get(_w("val")))
+                    name = attr.get(_w("name"))
+                    if name == "context":
+                        ctx = json.loads(attr.get(_w("val")))
+                    elif name == "className":
+                        class_name_attr = attr.get(_w("val"), "")
+                if ctx is not None:
+                    livecontrols.append(_normalize_livecontrol(ctx, class_name_attr))
 
         elif style in ("heading", "text"):
             text = "".join(
@@ -147,12 +185,114 @@ def _extract_section(paras):
             if text.strip():
                 labels.append(LabelIR(style=style, text=text.strip()))
 
-    return code_text, livecontrol, labels
+    return code_text, livecontrols, labels
+
+
+# Map from MATLAB livecontrol className attribute → canonical type string.
+# Real .mlx files omit "type" from the context JSON; we infer it from className.
+_CLASSNAME_TO_TYPE = {
+    "SpinnerControlNode":     "spinner",
+    "SliderControlNode":      "slider",
+    "RangeSliderControlNode": "rangeslider",
+    "CheckBoxControlNode":    "checkbox",
+    "StateButtonControlNode": "statebutton",
+    "EditFieldControlNode":   "editfield",
+    "ColorPickerControlNode": "colorPicker",
+    "DatePickerControlNode":  "datePicker",
+    "FileBrowserControlNode": "filebrowser",
+    "ComboBoxControlNode":    "comboBox",
+}
+
+
+def _normalize_livecontrol(ctx: dict, class_name_attr: str) -> dict:
+    """Normalize a real .mlx context dict to the canonical format expected by the parser.
+
+    Real MATLAB .mlx files use different JSON field names than the hand-crafted
+    golden test fixtures:
+      - No top-level "type" key (inferred from className attribute instead)
+      - data.text  instead of data.label  (component display name)
+      - data.minimum / data.maximum  instead of data.min / data.max
+    """
+    # Work on a shallow copy so we don't mutate the caller's dict
+    ctx = dict(ctx)
+
+    # Infer missing "type" from className
+    if "type" not in ctx and class_name_attr in _CLASSNAME_TO_TYPE:
+        ctx["type"] = _CLASSNAME_TO_TYPE[class_name_attr]
+
+    if "data" in ctx:
+        data = dict(ctx["data"])
+        # Real .mlx uses minimum/maximum; parser expects min/max
+        if "minimum" in data and "min" not in data:
+            data["min"] = data.pop("minimum")
+        if "maximum" in data and "max" not in data:
+            data["max"] = data.pop("maximum")
+        ctx["data"] = data
+
+    return ctx
+
+
+def _distribute_multi_control_section(
+    code_text: str, livecontrols: list, labels: list,
+    private_props: list, section_irs: list,
+) -> None:
+    """Handle a paragraph containing multiple livecontrols.
+
+    Non-button controls (slider, comboBox, etc.) are processed first in DOM order;
+    each consumes its bound-var assignment from the shared code pool and gets
+    empty code_lines (value-update-only callback).  The button (if any) receives
+    whatever code lines remain after all bound-var assignments have been consumed.
+    """
+    lines = [l for l in code_text.strip().splitlines() if l.strip()]
+
+    sec_buttons = []
+    sec_dropdowns = []
+    sec_controls = []
+
+    # First pass: non-button controls
+    for lc in livecontrols:
+        t = lc.get("type", "")
+        if t == "button":
+            continue
+        elif t == "comboBox":
+            sec, prop = _parse_dropdown_section(lc["data"], "\n".join(lines))
+            lines = [l for l in sec.code_lines if l.strip()]
+            sec.code_lines = []
+            sec_dropdowns.append(sec)
+            private_props.append(prop)
+        else:
+            ctrl_type = _resolve_control_type(lc)
+            if ctrl_type:
+                sec, prop = _parse_control_section(lc["data"], "\n".join(lines), ctrl_type)
+                lines = [l for l in sec.code_lines if l.strip()]
+                sec.code_lines = []
+                sec_controls.append(sec)
+                if prop:
+                    private_props.append(prop)
+
+    # Second pass: button gets remaining lines
+    for lc in livecontrols:
+        if lc.get("type") == "button":
+            label = lc["data"]["text"]
+            sec_buttons.append(ButtonSection(
+                label=label,
+                code_lines=lines,
+                component_name=_to_pascal_case(label),
+            ))
+            lines = []
+
+    section_irs.append(SectionIR(
+        labels=labels,
+        plot_lines=[],
+        button_sections=sec_buttons,
+        dropdown_sections=sec_dropdowns,
+        control_sections=sec_controls,
+    ))
 
 
 def _parse_dropdown_section(data: dict, code_text: str):
     """Return (DropDownSection, private_prop_tuple) from a comboBox livecontrol."""
-    component_name = _to_pascal_case(data["text"])
+    component_name = _to_pascal_case(data["text"]) or "DropDown"
     callback_name = f"{component_name}ValueChanged"
     items = data["itemLabels"]
     # defaultValue is a MATLAB expression like '"one"' — strip outer double-quotes.
@@ -183,8 +323,16 @@ def _parse_dropdown_section(data: dict, code_text: str):
 
 
 def _to_pascal_case(text: str) -> str:
-    """Convert a label string to PascalCase (e.g. 'Drop down' -> 'DropDown')."""
-    return "".join(word.capitalize() for word in text.split())
+    """Convert a label string to a valid PascalCase MATLAB identifier.
+
+    Splits on whitespace and non-alphanumeric characters, capitalises each
+    token, and joins them.  E.g.:
+        'Drop down'               → 'DropDown'
+        'Square Wave Frequency (Hz)' → 'SquareWaveFrequencyHz'
+        'Plot it'                 → 'PlotIt'
+    """
+    tokens = re.split(r'[^A-Za-z0-9]+', text)
+    return "".join(t.capitalize() for t in tokens if t)
 
 
 _PLOT_FUNCTIONS = frozenset({

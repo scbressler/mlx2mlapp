@@ -26,9 +26,18 @@ contract, implemented via the `ControlSection` IR dataclass.
 ## Layout
 
 - Always uses the layout engine path (1100×760 canvas).
-- Control widget: 32 px tall, full usable width (1060 px in `output_inline`/`hide_code`;
-  520 px in `output_right` left column).
-- Below the widget: `{ComponentName}CodeTextArea` (120 px, black bg, white text).
+- Control widget: 32 px tall. **Exception: `slider` is 3 px** (`_SLIDER_NATURAL_HEIGHT`).
+  MATLAB's UISlider has a fixed track height; setting 32 triggers "The height of this
+  component cannot be changed" and corrupts tick-label rendering.
+  - **Non-labeled types** (`slider`, `checkbox`, `statebutton`, `colorpicker`, `filebrowser`):
+    full usable width (1060 px in `output_inline`/`hide_code`; 520 px in `output_right` left column),
+    positioned at `x = 20` (margin).
+  - **Labeled types** (`spinner`, `rangeslider`, `editfield_numeric`, `editfield_text`, `datepicker`):
+    a 100 px `<Label>` sibling is emitted to the left; the control starts at `x = 130` with
+    width = usable_width − 110 px (950 px in `output_inline`/`hide_code`; 410 px in `output_right`).
+- **Slider / RangeSlider tick mark gap**: An extra 20 px is added below the widget (before the
+  CodeTextArea) to prevent tick marks from overlapping the TextArea below.
+- Below the widget (plus tick gap if applicable): `{ComponentName}CodeTextArea` (120 px, black bg, white text).
 - Below that: `{ComponentName}OutputTextArea` (120 px, dark gray bg, green text).
 - In `output_right` mode: CodeTextArea in left column, OutputTextArea in right column,
   bottom-aligned to CodeTextArea (same pattern as button/dropdown sections).
@@ -95,6 +104,41 @@ function {ComponentName}ValueChanged(app, event)
 end
 ```
 
+When `bound_var` is empty, `output_text_area_name` is empty, and `code_lines` is empty,
+the body would be completely empty. In that case codegen emits `% value changed` as a
+placeholder — an empty Slider callback body crashes App Designer on file open.
+
+---
+
+## Labeled Components
+
+App Designer requires certain controls to have an associated `<Label>` sibling element.
+Without it, App Designer throws "Index exceeds the number of array elements" on load.
+
+**Labeled types:** `spinner`, `rangeslider`, `editfield_numeric`, `editfield_text`, `datepicker`
+
+**Non-labeled types:** `slider`, `checkbox`, `statebutton`, `colorpicker`, `filebrowser`
+
+For labeled types, the XML emits a `<Label>` element **before** the main component, and the
+main component carries a `label='...'` attribute:
+
+```xml
+<Label name='{ComponentName}Label'>
+    <HorizontalAlignment>'right'</HorizontalAlignment>
+    <Position>[20 {bottom+5} 100 22]</Position>
+    <Text>'{ComponentName}'</Text>
+</Label>
+<Spinner name='{ComponentName}' label='{ComponentName}Label'>
+    ...
+</Spinner>
+```
+
+- Label position: `[margin, bottom + (ctrl_h − label_h) // 2, 100, 22]` — vertically centered
+  within the 32 px control row (offset = 5 px from control bottom).
+- Label text: the PascalCase component name (same as `component_name`).
+- A `{ComponentName}Label  matlab.ui.control.Label` entry is added to the public properties
+  block in the `.m` classdef, immediately before the main component entry.
+
 ---
 
 ## Layout XML Properties (alphabetical, `<Children>` last)
@@ -120,8 +164,17 @@ end
 - **DatePicker**: no `defaultValue` → `default_value = "NaT"`, `bound_var = ""`,
   no `<Value>` in XML, no private prop emitted.
 - **FileBrowser**: maps to `EditField` XML tag and `matlab.ui.control.EditField`
-  class (App Designer has no native FileBrowser component).
+  class (App Designer has no native FileBrowser component). Not a labeled type.
 - **Slider**: no `<Step>` property in App Designer XML (only `<Limits>` and `<Value>`).
+  Not a labeled type. Height is 3 px (`_SLIDER_NATURAL_HEIGHT`), not 32 px — MATLAB's
+  horizontal Slider has a fixed track height; using 32 corrupts tick-label rendering.
+  Tick marks require an additional 20 px gap (`_SLIDER_TICK_EXTRA`) below the widget.
+  **Empty callback crash**: a Slider whose `ValueChangedFcn` has an empty body triggers
+  "Dimensions of position argument…" when App Designer opens the file (unrelated to
+  position or limits). Codegen guards against this with `% value changed` placeholder
+  when no other lines are generated (see Hard-Won Decisions in CLAUDE.md).
+- **RangeSlider**: labeled type AND has tick marks — gets both the `<Label>` sibling
+  and the 20 px tick gap before the CodeTextArea.
 - **CheckBox / StateButton**: `<Value>` is omitted when the default is `false`
   (App Designer default); `<Text>` uses the PascalCase component name.
 - **camelCase type strings**: `colorPicker` and `datePicker` use camelCase in the

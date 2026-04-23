@@ -10,9 +10,15 @@ capabilities.
 
 ## Input Artifact
 
-- The translator consumes `document.xml` extracted from a `.mlx` file.
-- The `.mlx` container itself is not processed.
-- Only structural and semantic information in `document.xml` is considered.
+The translator accepts three input formats, auto-detected by file extension:
+
+| Extension | Format | Notes |
+|-----------|--------|-------|
+| `.m` | Plain-text Live Script (R2025a+) | Parsed by `parse_plaintext.py` |
+| `.mlx` | Binary Live Script (ZIP archive) | `document.xml` extracted to temp file; parsed by `parse.py` |
+| `.xml` | Raw `document.xml` | Legacy/test path; parsed by `parse.py` directly |
+
+All three formats produce the same `AppIR`; codegen is format-agnostic.
 
 ---
 
@@ -49,6 +55,11 @@ Rendered outputs are ignored.
 - The `context` attribute of each `customXml` block contains a JSON object
   with `"type"` and `"data"` fields. The `"type"` string determines which
   control parser is invoked.
+- **Real MATLAB `.mlx` files** omit the `"type"` field; type is inferred from
+  the `className` XML attribute (e.g. `SpinnerControlNode → "spinner"`). This
+  normalization is applied by `_normalize_livecontrol()` in `parse.py`.
+- **Real MATLAB `.mlx` files** use `minimum`/`maximum` instead of `min`/`max`
+  in control data; `_normalize_livecontrol()` renames these before parsing.
 
 ### Confirmed control types (with known `context` JSON structure)
 
@@ -77,7 +88,7 @@ the same fields appear inside a `"data"` key and `executionModel` replaces `run`
 **Note:** Slider, Spinner, and Range Slider share identical JSON shape (`defaultValue`, `min`, `max`, `step`, `label`, `run`, `runOn`).
 State Button and Checkbox share identical JSON shape (boolean `defaultValue`, `label`, `run`).
 
-All 11 Live Editor controls are now confirmed. No controls with unknown `type` remain.
+All 12 Live Editor controls are implemented. Spinner confirmed from a real `.mlx` file; other `_CLASSNAME_TO_TYPE` mappings are inferred from naming convention — verify with real `.mlx` files if problems arise.
 
 ### Acquisition strategy for new widget types
 
@@ -86,4 +97,24 @@ To discover the `context` JSON for an unknown control without zip extraction:
 2. Save As → **MATLAB Live Code File (UTF-8) (*.m)** (plain-text, R2025a+)
 3. Read the `%[control:controltype:controlid]` data block in the file's appendix
 4. The JSON there contains all field names needed to write the parser
+
+---
+
+## Plain-Text Live Script (`.m`) Format
+
+Structural markup used by the parser (`parse_plaintext.py`):
+
+| Marker | Meaning |
+|--------|---------|
+| `%[text] ## Heading` | Start new section; text after `## ` is the label |
+| `%[text]` (blank) | Section boundary with no label |
+| `code  %[control:type:uuid]{...}` | Inline control — bound to the code on the same line |
+| `  %[control:type:uuid]{...}` | Standalone control line (e.g. button, unlabeled spinner) |
+| `code  %[output:uuid]` | Output annotation — stripped; ignored by translator |
+| `%[appendix]{...}` | Divides file; everything after is appendix |
+| `%[control:type:uuid]` | Appendix control header (standalone line) |
+| `%   data: {json}` | Appendix control data line (follows header, skipping blanks/`%---`) |
+| `%---` | Appendix section separator |
+
+**Button normalization:** the appendix JSON for buttons uses `"label"` not `"text"` as the display name key. `parse_plaintext.py` copies `data['label']` to `data['text']` so downstream code (`_parse_control_section`, codegen) works unchanged.
 
