@@ -4,6 +4,7 @@ classdef minimal_datepicker < matlab.apps.App
     properties (Access = public)
         UIFigure                  matlab.ui.Figure
         DatePicker                matlab.ui.control.DatePicker
+        DatePickerLabel           matlab.ui.control.Label
         DatePickerCodeTextArea    matlab.ui.control.TextArea
         DatePickerOutputTextArea  matlab.ui.control.TextArea
     end
@@ -40,9 +41,14 @@ end
         <Name>'MATLAB App'</Name>
         <Position>[100 100 1100 760]</Position>
         <Children>
-            <DatePicker name='DatePicker'>
+            <Label name='DatePickerLabel'>
+                <HorizontalAlignment>'right'</HorizontalAlignment>
+                <Position>[20 713 100 22]</Position>
+                <Text>'DatePicker'</Text>
+            </Label>
+            <DatePicker name='DatePicker' label='DatePickerLabel'>
                 <DisplayFormat>'dd-MMM-uuuu'</DisplayFormat>
-                <Position>[20 708 1060 32]</Position>
+                <Position>[130 708 950 32]</Position>
                 <ValueChangedFcn>DatePickerValueChanged</ValueChangedFcn>
             </DatePicker>
             <TextArea name='DatePickerCodeTextArea'>
@@ -51,7 +57,7 @@ end
                 <FontColor>[1 1 1]</FontColor>
                 <FontName>'Courier New'</FontName>
                 <Position>[20 578 1060 120]</Position>
-                <Value>'disp(''date changed'')'</Value>
+                <Value>char("disp('date changed')")</Value>
             </TextArea>
             <TextArea name='DatePickerOutputTextArea'>
                 <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>

@@ -9,8 +9,9 @@ class LabelIR:
 
 @dataclass
 class ButtonSection:
-    label: str         # e.g. "Run"
-    code_lines: list   # list of str, stripped
+    label: str           # display text, e.g. "Run" or "Plot it"
+    code_lines: list     # list of str, stripped
+    component_name: str = ""         # PascalCase identifier, e.g. "Run" or "PlotIt"; set by parser
     code_text_area_name: str = ""    # set by codegen: e.g. "RunCodeTextArea"
     output_text_area_name: str = ""  # set by codegen: e.g. "RunOutputTextArea"
 

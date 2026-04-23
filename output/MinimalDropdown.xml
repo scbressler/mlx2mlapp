@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Components>
+    <UIFigure name='UIFigure'>
+        <Name>'MATLAB App'</Name>
+        <Position>[100 100 1100 760]</Position>
+        <Children>
+            <DropDown name='DropDown'>
+                <Items>{'one', 'two'}</Items>
+                <Position>[20 708 1060 32]</Position>
+                <Value>'one'</Value>
+                <ValueChangedFcn>DropDownValueChanged</ValueChangedFcn>
+            </DropDown>
+            <TextArea name='DropDownCodeTextArea'>
+                <BackgroundColor>[0 0 0]</BackgroundColor>
+                <Editable>'off'</Editable>
+                <FontColor>[1 1 1]</FontColor>
+                <FontName>'Courier New'</FontName>
+                <Position>[20 578 1060 120]</Position>
+                <Value>'disp(value);'</Value>
+            </TextArea>
+            <TextArea name='DropDownOutputTextArea'>
+                <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>
+                <Editable>'off'</Editable>
+                <FontColor>[0.4 1 0.4]</FontColor>
+                <FontName>'Courier New'</FontName>
+                <Position>[20 448 1060 120]</Position>
+                <Value>''</Value>
+            </TextArea>
+        </Children>
+    </UIFigure>
+</Components>

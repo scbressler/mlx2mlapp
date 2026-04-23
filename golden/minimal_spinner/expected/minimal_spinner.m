@@ -4,6 +4,7 @@ classdef minimal_spinner < matlab.apps.App
     properties (Access = public)
         UIFigure               matlab.ui.Figure
         Spinner                matlab.ui.control.Spinner
+        SpinnerLabel           matlab.ui.control.Label
         SpinnerCodeTextArea    matlab.ui.control.TextArea
         SpinnerOutputTextArea  matlab.ui.control.TextArea
     end
@@ -47,9 +48,14 @@ end
         <Name>'MATLAB App'</Name>
         <Position>[100 100 1100 760]</Position>
         <Children>
-            <Spinner name='Spinner'>
+            <Label name='SpinnerLabel'>
+                <HorizontalAlignment>'right'</HorizontalAlignment>
+                <Position>[20 713 100 22]</Position>
+                <Text>'Spinner'</Text>
+            </Label>
+            <Spinner name='Spinner' label='SpinnerLabel'>
                 <Limits>[-100 100]</Limits>
-                <Position>[20 708 1060 32]</Position>
+                <Position>[130 708 950 32]</Position>
                 <Step>1</Step>
                 <Value>0</Value>
                 <ValueChangedFcn>SpinnerValueChanged</ValueChangedFcn>
@@ -60,7 +66,7 @@ end
                 <FontColor>[1 1 1]</FontColor>
                 <FontName>'Courier New'</FontName>
                 <Position>[20 578 1060 120]</Position>
-                <Value>'fprintf(''Value is %d'', val)'</Value>
+                <Value>char("fprintf('Value is %d', val)")</Value>
             </TextArea>
             <TextArea name='SpinnerOutputTextArea'>
                 <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>

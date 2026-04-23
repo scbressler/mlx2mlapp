@@ -46,7 +46,7 @@ end
                 <FontColor>[1 1 1]</FontColor>
                 <FontName>'Courier New'</FontName>
                 <Position>[20 620 520 120]</Position>
-                <Value>{'a = 1;'; 'fprintf(''The value of a is %d'',a);'}</Value>
+                <Value>{char("a = 1;"); char("fprintf('The value of a is %d',a);")}</Value>
             </TextArea>
             <TextArea name='OutputTextArea'>
                 <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>

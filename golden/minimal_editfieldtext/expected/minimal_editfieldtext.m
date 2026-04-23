@@ -4,6 +4,7 @@ classdef minimal_editfieldtext < matlab.apps.App
     properties (Access = public)
         UIFigure            matlab.ui.Figure
         Name                matlab.ui.control.EditField
+        NameLabel           matlab.ui.control.Label
         NameCodeTextArea    matlab.ui.control.TextArea
         NameOutputTextArea  matlab.ui.control.TextArea
     end
@@ -47,8 +48,13 @@ end
         <Name>'MATLAB App'</Name>
         <Position>[100 100 1100 760]</Position>
         <Children>
-            <EditField name='Name'>
-                <Position>[20 708 1060 32]</Position>
+            <Label name='NameLabel'>
+                <HorizontalAlignment>'right'</HorizontalAlignment>
+                <Position>[20 713 100 22]</Position>
+                <Text>'Name'</Text>
+            </Label>
+            <EditField name='Name' label='NameLabel'>
+                <Position>[130 708 950 32]</Position>
                 <Value>''</Value>
                 <ValueChangedFcn>NameValueChanged</ValueChangedFcn>
             </EditField>
@@ -58,7 +64,7 @@ end
                 <FontColor>[1 1 1]</FontColor>
                 <FontName>'Courier New'</FontName>
                 <Position>[20 578 1060 120]</Position>
-                <Value>'fprintf(''Hello, %s'', name)'</Value>
+                <Value>char("fprintf('Hello, %s', name)")</Value>
             </TextArea>
             <TextArea name='NameOutputTextArea'>
                 <BackgroundColor>[0.149 0.149 0.149]</BackgroundColor>

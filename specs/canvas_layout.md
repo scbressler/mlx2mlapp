@@ -61,6 +61,8 @@ decremented by `row_height + row_gap`.
 | Label (body) | 22 px |
 | Button | 32 px |
 | DropDown | 32 px |
+| Slider | 3 px (fixed track height — see `control_section.md`) |
+| RangeSlider, Spinner, EditField, etc. | 32 px |
 | UIAxes | 440 px (single), 260 px (multiple) |
 | CodeTextArea | 120 px |
 | OutputTextArea | 120 px |
